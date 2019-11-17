@@ -66,10 +66,8 @@ void ParticleFilter::dataAssociation(vector<LandmarkObs> const &predicted,
     for (auto &o : observations) {
         // init minimum distance to maximum possible
         double min_dist = std::numeric_limits<double>::max();
-
         // init id of landmark
         int id = -1;
-
         for (auto const &p : predicted) {
             // distance between current and predicted landmark
             double curr_dist = dist(o.x, o.y, p.x, p.y);
@@ -78,7 +76,6 @@ void ParticleFilter::dataAssociation(vector<LandmarkObs> const &predicted,
                 id = p.id;
             }
         }
-
         // Assign the id of the nearest neighbor landmark to the transformed observation
         o.id = id;
     }
@@ -87,20 +84,46 @@ void ParticleFilter::dataAssociation(vector<LandmarkObs> const &predicted,
 void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
                                    const vector<LandmarkObs> &observations,
                                    const Map &map_landmarks) {
-    /**
-     * TODO: Update the weights of each particle using a mult-variate Gaussian
-     *   distribution. You can read more about this distribution here:
-     *   https://en.wikipedia.org/wiki/Multivariate_normal_distribution
-     * NOTE: The observations are given in the VEHICLE'S coordinate system.
-     *   Your particles are located according to the MAP'S coordinate system.
-     *   You will need to transform between the two systems. Keep in mind that
-     *   this transformation requires both rotation AND translation (but no scaling).
-     *   The following is a good resource for the theory:
-     *   https://www.willamette.edu/~gorr/classes/GeneralGraphics/Transforms/transforms2d.htm
-     *   and the following is a good resource for the actual equation to implement
-     *   (look at equation 3.33) http://planning.cs.uiuc.edu/node99.html
-     */
+    for (auto &p : particles) {
 
+        // get predicted candidates
+        vector<LandmarkObs> predictions;
+        for (auto const &lm : map_landmarks.landmark_list) {
+            // consider only those which are in the sensor range
+            if (abs(dist(lm.x_f, lm.y_f, p.x, p.y)) <= sensor_range) {
+                predictions.push_back(LandmarkObs{lm.id_i, lm.x_f, lm.y_f});
+            }
+        }
+
+        // transform observation to map coordinate frame
+        vector<LandmarkObs> observations_map;
+        for (auto const &o : observations) {
+            double x = cos(p.theta) * o.x - sin(p.theta) * o.y + p.x;
+            double y = sin(p.theta) * o.x + cos(p.theta) * o.y + p.y;
+            observations_map.push_back(LandmarkObs{o.id, x, y});
+        }
+
+        // perform data association on predictions and observations
+        dataAssociation(predictions, observations_map);
+
+        // re-initialize weights
+        p.weight = 1.0;
+
+        // update weights
+        for (auto const &o_map : observations_map) {
+            // get coordinates of landmark associated with prediction
+            auto lm = std::find_if(predictions.begin(), predictions.end(),
+                                   [&o_map](LandmarkObs const &lm) { return lm.id == o_map.id; });
+
+            if (lm != predictions.end()) {
+                double obs_weight = multivariate_gaussian_probability(o_map.x, o_map.y, lm->x, lm->y, std_landmark[0],
+                                                                      std_landmark[1]);
+                p.weight *= obs_weight;
+            } else {
+                throw std::runtime_error("could not find associated landmark object");
+            }
+        }
+    }
 }
 
 void ParticleFilter::resample() {
@@ -162,4 +185,12 @@ void ParticleFilter::addNoise(Particle &p, double *std) {
     p.x += noise_x(gen);
     p.y += noise_y(gen);
     p.theta += noise_theta(gen);
+}
+
+double
+ParticleFilter::multivariate_gaussian_probability(double x_map, double y_map, double mu_x, double mu_y, double sigma_x,
+                                                  double sigma_y) {
+
+    return 1 / (2 * M_PI * sigma_x * sigma_y) *
+           exp(-(pow(x_map - mu_x, 2) / (2 * pow(sigma_x, 2)) + pow(y_map - mu_y, 2) / (2 * pow(sigma_y, 2))));
 }

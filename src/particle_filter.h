@@ -63,7 +63,7 @@ public:
      * @param predicted Vector of predicted landmark observations
      * @param observations Vector of landmark observations
      */
-    void dataAssociation(std::vector<LandmarkObs> const& predicted,
+    void dataAssociation(std::vector<LandmarkObs> const &predicted,
                          std::vector<LandmarkObs> &observations);
 
     /**
@@ -113,23 +113,17 @@ public:
     std::vector<Particle> particles;
 
 private:
-    /**
-     * Adds noise to a given particle
-     *
-     * @param p Particle the noise is added to
-     * @param std[] Array of dimension 3 [standard deviation of x [m],
-     *   standard deviation of y [m], standard deviation of yaw [rad]]
-     */
+
     void addNoise(Particle &p, double *std);
+
+    double multivariate_gaussian_probability(double x_map, double y_map, double mu_x, double mu_y, double sigma_x,
+                                             double sigma_y);
 
     // Number of particles to draw
     int num_particles;
 
     // Flag, if filter is initialized
     bool is_initialized;
-
-    // Vector of weights of all particles
-    std::vector<double> weights;
 };
 
 #endif  // PARTICLE_FILTER_H_
