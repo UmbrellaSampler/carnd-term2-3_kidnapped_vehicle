@@ -30,7 +30,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
     num_particles = 100;
 
     // initialize particles
-    for (size_t i = 0; i < num_particles; ++i) {
+    for (int i = 0; i < num_particles; ++i) {
         Particle p;
         p.id = i;
         p.x = x;
@@ -48,7 +48,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 void ParticleFilter::prediction(double delta_t, double std_pos[],
                                 double velocity, double yaw_rate) {
     // Add measurements to each particle and add random Gaussian noise
-    for (auto p : particles) {
+    for (auto& p : particles) {
         if (fabs(yaw_rate) < 0.00001) {
             p.x += velocity * delta_t * cos(p.theta);
             p.y += velocity * delta_t * sin(p.theta);
@@ -136,7 +136,7 @@ void ParticleFilter::resample() {
     std::discrete_distribution<> dist(weights.begin(), weights.end());
 
     vector<Particle> resampled;
-    for (auto const& p : particles) {
+    for (size_t i = 0; i < particles.size(); ++i) {
         resampled.push_back(particles[dist(gen)]);
     }
 
